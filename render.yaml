@@ -1,0 +1,11 @@
+services:
+  - type: worker
+    name: aeon-bot
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: NODE_ENV
+        value: production
