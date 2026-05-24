@@ -1,4 +1,5 @@
 import { EconomyData, WarnData, LevelData, GuildConfig } from "../types.js";
+import { saveEconomy, saveLevel, saveWarn, deleteWarns, saveGuildConfig } from "../db.js";
 
 export const economyData: EconomyData = {};
 export const warnData: WarnData = {};
@@ -9,45 +10,58 @@ export const spamTracker: Map<string, { count: number; timestamp: number }> = ne
 export const triviaActive: Map<string, { answer: string; timeout: ReturnType<typeof setTimeout> }> = new Map();
 export const numberGames: Map<string, { number: number; attempts: number }> = new Map();
 
-export function getBalance(userId: string): number {
+function ensureEconomy(userId: string) {
   if (!economyData[userId]) economyData[userId] = { balance: 0, lastDaily: 0, lastWork: 0 };
+}
+
+export function getBalance(userId: string): number {
+  ensureEconomy(userId);
   return economyData[userId].balance;
 }
 
 export function addBalance(userId: string, amount: number): void {
-  if (!economyData[userId]) economyData[userId] = { balance: 0, lastDaily: 0, lastWork: 0 };
+  ensureEconomy(userId);
   economyData[userId].balance = Math.max(0, economyData[userId].balance + amount);
+  const e = economyData[userId];
+  saveEconomy(userId, e.balance, e.lastDaily, e.lastWork);
 }
 
 export function setBalance(userId: string, amount: number): void {
-  if (!economyData[userId]) economyData[userId] = { balance: 0, lastDaily: 0, lastWork: 0 };
+  ensureEconomy(userId);
   economyData[userId].balance = Math.max(0, amount);
+  const e = economyData[userId];
+  saveEconomy(userId, e.balance, e.lastDaily, e.lastWork);
 }
 
 export function getLastDaily(userId: string): number {
-  if (!economyData[userId]) economyData[userId] = { balance: 0, lastDaily: 0, lastWork: 0 };
+  ensureEconomy(userId);
   return economyData[userId].lastDaily;
 }
 
 export function setLastDaily(userId: string, timestamp: number): void {
-  if (!economyData[userId]) economyData[userId] = { balance: 0, lastDaily: 0, lastWork: 0 };
+  ensureEconomy(userId);
   economyData[userId].lastDaily = timestamp;
+  const e = economyData[userId];
+  saveEconomy(userId, e.balance, e.lastDaily, e.lastWork);
 }
 
 export function getLastWork(userId: string): number {
-  if (!economyData[userId]) economyData[userId] = { balance: 0, lastDaily: 0, lastWork: 0 };
+  ensureEconomy(userId);
   return economyData[userId].lastWork ?? 0;
 }
 
 export function setLastWork(userId: string, timestamp: number): void {
-  if (!economyData[userId]) economyData[userId] = { balance: 0, lastDaily: 0, lastWork: 0 };
+  ensureEconomy(userId);
   economyData[userId].lastWork = timestamp;
+  const e = economyData[userId];
+  saveEconomy(userId, e.balance, e.lastDaily, e.lastWork);
 }
 
 export function addWarn(guildId: string, userId: string, reason: string): number {
   if (!warnData[guildId]) warnData[guildId] = {};
   if (!warnData[guildId][userId]) warnData[guildId][userId] = [];
   warnData[guildId][userId].push(reason);
+  saveWarn(guildId, userId, reason);
   return warnData[guildId][userId].length;
 }
 
@@ -58,6 +72,7 @@ export function getWarns(guildId: string, userId: string): string[] {
 
 export function clearWarns(guildId: string, userId: string): void {
   if (warnData[guildId]) warnData[guildId][userId] = [];
+  deleteWarns(guildId, userId);
 }
 
 export function getLevelData(userId: string): { xp: number; level: number } {
@@ -78,7 +93,9 @@ export function addXp(userId: string, amount: number): { leveledUp: boolean; new
     leveledUp = true;
   }
 
-  return { leveledUp, newLevel: levelData[userId].level };
+  const { xp, level } = levelData[userId];
+  saveLevel(userId, xp, level);
+  return { leveledUp, newLevel: level };
 }
 
 export function getGuildConfig(guildId: string): GuildConfig[string] {
@@ -96,4 +113,6 @@ export function getGuildConfig(guildId: string): GuildConfig[string] {
 export function setGuildConfig(guildId: string, config: Partial<GuildConfig[string]>): void {
   const current = getGuildConfig(guildId);
   guildConfig[guildId] = { ...current, ...config };
+  const c = guildConfig[guildId];
+  saveGuildConfig(guildId, c.welcomeChannelId, c.autoroleId, c.automodEnabled, c.antiSpamEnabled);
 }

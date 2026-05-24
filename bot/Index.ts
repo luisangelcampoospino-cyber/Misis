@@ -1,6 +1,8 @@
 import { Client, Collection, GatewayIntentBits, Partials } from "discord.js";
 import { BotClient, Command } from "./types.js";
 import { logger } from "../lib/logger.js";
+import { initDB, loadAllData } from "./db.js";
+import { economyData, warnData, levelData, guildConfig } from "./data/store.js";
 
 import onReady from "./events/ready.js";
 import onInteractionCreate from "./events/interactionCreate.js";
@@ -98,6 +100,21 @@ const token = process.env["DISCORD_TOKEN"];
 if (!token) {
   logger.error("La variable de entorno DISCORD_TOKEN no está definida.");
   process.exit(1);
+}
+
+if (process.env["DATABASE_URL"]) {
+  try {
+    await initDB();
+    const data = await loadAllData();
+    Object.assign(economyData, data.economy);
+    Object.assign(warnData, data.warns);
+    Object.assign(levelData, data.levels);
+    Object.assign(guildConfig, data.config);
+  } catch (err) {
+    logger.error({ err }, "Error iniciando base de datos — continuando sin persistencia");
+  }
+} else {
+  logger.warn("DATABASE_URL no definida — los datos no se guardarán al reiniciar");
 }
 
 client.login(token).catch((err) => {
