@@ -121,3 +121,11 @@ client.login(token).catch((err) => {
   logger.error({ err }, "Error al iniciar sesión en Discord");
   process.exit(1);
 });
+
+// Servidor HTTP keep-alive para que Render no apague el bot
+import { createServer } from "http";
+const PORT = process.env["PORT"] ? parseInt(process.env["PORT"]) : 3000;
+createServer((_, res) => {
+  res.writeHead(200);
+  res.end("ÆON está activo ✅");
+}).listen(PORT, () => logger.info(`Keep-alive escuchando en puerto ${PORT}`));
